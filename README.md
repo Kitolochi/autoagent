@@ -11,7 +11,9 @@
 
 > Like [autoresearch](https://github.com/karpathy/autoresearch) but for agent engineering. Give an AI agent a task, let it build and iterate on an agent harness autonomously overnight. It modifies the system prompt, tools, agent configuration, and orchestration, runs the benchmark, checks the score, keeps or discards the change, and repeats.
 
-![teaser](progress.png)
+<p align="center">
+  <img src="progress.png" alt="teaser" width="600">
+</p>
 
 The core idea is the same: you're not touching the harness Python files like you normally would as an engineer. Instead, you program `program.md`, the Markdown file that provides context to the meta-agent and defines the agent-engineering loop.
 
