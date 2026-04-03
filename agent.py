@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import time
 from datetime import datetime, timezone
 
@@ -14,11 +15,13 @@ from agents.items import (
     ToolCallItem,
     ToolCallOutputItem,
 )
+from agents.models.openai_chatcompletions import OpenAIChatCompletionsModel
 from agents.tool import FunctionTool
 from agents.usage import Usage
 from harbor.agents.base import BaseAgent
 from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
+from openai import AsyncOpenAI
 
 
 # ============================================================================
@@ -26,8 +29,12 @@ from harbor.models.agent.context import AgentContext
 # ============================================================================
 
 SYSTEM_PROMPT = "You are an agent that executes tasks"
-MODEL = "gpt-5"
+MODEL = os.getenv("AUTOAGENT_MODEL", "claude-sonnet-4-6")
 MAX_TURNS = 30
+
+PROXY_BASE_URL = os.getenv("AUTOAGENT_PROXY_URL", "http://127.0.0.1:8741/claude/v1")
+_client = AsyncOpenAI(base_url=PROXY_BASE_URL, api_key="not-needed")
+_model = OpenAIChatCompletionsModel(model=MODEL, openai_client=_client)
 
 
 def create_tools(environment: BaseEnvironment) -> list[FunctionTool]:
@@ -57,7 +64,7 @@ def create_agent(environment: BaseEnvironment) -> Agent:
         name="autoagent",
         instructions=SYSTEM_PROMPT,
         tools=tools,
-        model=MODEL,
+        model=_model,
     )
 
 

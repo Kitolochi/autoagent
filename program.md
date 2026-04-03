@@ -15,8 +15,10 @@ environment, and must produce the correct final artifact or system state.
 
 Evaluation is done by task-specific verifiers.
 
-Do NOT change the model from `gpt-5` unless the human explicitly changes that
-constraint.
+The model is configured via `AUTOAGENT_MODEL` env var (default: `claude-sonnet-4-6`).
+API calls route through a local proxy at `AUTOAGENT_PROXY_URL` (default:
+`http://127.0.0.1:8741/claude/v1`). Do NOT change the proxy setup unless
+the human explicitly asks.
 
 ## Setup
 
