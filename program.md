@@ -1,37 +1,48 @@
 # autoagent
 
 Autonomous agent engineering. You are a professional agent harness engineer and
-a meta-agent that improves an AI agent harness.
+a meta-agent that improves an AI video editor agent.
 
 Your job is not to solve benchmark tasks directly. Your job is to improve the
-harness in `agent.py` so the agent gets better at solving tasks on its own.
+harness in `agent.py` so the agent gets better at video editing tasks on its own.
 
 ## Directive
 
-Build a generally capable autonomous coding and terminal agent.
+Build a professional AI video editor that operates natively in Adobe Premiere
+Pro (via MCP) and After Effects (via ExtendScript).
 
-The agent receives a natural-language task instruction, works inside a sandboxed
-environment, and must produce the correct final artifact or system state.
+The agent receives a natural-language editing instruction, works with a live
+Premiere Pro instance through MCP tools, and must produce the correct timeline
+state (clips placed, effects applied, transitions added, etc.).
 
-Evaluation is done by task-specific verifiers.
+Evaluation is done by task-specific verifiers that inspect the Premiere project
+state via MCP inspection tools.
 
 The model is configured via `AUTOAGENT_MODEL` env var (default: `claude-sonnet-4-6`).
 API calls route through a local proxy at `AUTOAGENT_PROXY_URL` (default:
 `http://127.0.0.1:8741/claude/v1`). Do NOT change the proxy setup unless
 the human explicitly asks.
 
+## Prerequisites
+
+Before running benchmarks:
+
+1. Start the ccproxy: `cd C:\Users\chris\llm-proxy && ccproxy serve --config config.toml`
+2. Start Premiere Pro with the CEP MCP bridge plugin active
+3. Start the Premiere MCP HTTP server: `node C:\Users\chris\lifeautomation\premiere-pro-mcp\dist\http-server.js`
+4. Verify connectivity: `curl http://localhost:3000/mcp` should respond
+
 ## Setup
 
 Before starting a new experiment:
 
 1. Read `README.md`, this file, and `agent.py`.
-2. Read `docs/good-harness.md` and `docs/openai-agents-sdk/tools.md` for tool
-   design patterns, `agent.as_tool()`, and handoff mechanics.
-3. If the current branch contains tasks, read a representative sample of task
-   instructions and verifier code.
-4. Check whether runtime dependencies are missing.
-5. Update `pyproject.toml` or `Dockerfile.base` only if needed.
-6. Build the base image and verify the agent imports cleanly.
+2. Read `knowledge/techniques.md` and `knowledge/ae-gotchas.md` for the
+   agent's embedded knowledge base.
+3. Read `tools/premiere.py` to understand available Premiere MCP tools.
+4. Read a representative sample of task instructions and verifier code.
+5. Verify Premiere MCP connectivity (see Prerequisites above).
+6. Check whether runtime dependencies are missing.
 7. Initialize `results.tsv` if it does not exist.
 
 The first run must always be the unmodified baseline. Establish the baseline
@@ -56,22 +67,29 @@ overall system design.
 Prompt tuning alone has diminishing returns. Adding specialized tools is a
 high-leverage improvement axis.
 
-A single `run_shell` tool forces the agent to write boilerplate from scratch on
-every call, wasting tokens and introducing errors. Specialized tools reduce
-failure modes by:
+The agent has three tool categories:
 
-- surfacing structured data instead of raw stdout
-- providing clear error messages the model can act on
-- matching the model's name-based priors (models pattern-match tool names
-  before reading descriptions)
+1. **Premiere MCP tools** (`tools/premiere.py`) — 32 tools covering timeline
+   manipulation, effects, transitions, text, audio, markers, and project
+   management. These call the Premiere MCP HTTP server at localhost:3000.
 
-For spreadsheet tasks, consider tools like: workbook inspection (sheet names,
-dimensions, sample values), targeted cell reading, and validated cell writing.
+2. **Knowledge tools** (`tools/knowledge.py`) — lookup_technique and
+   lookup_ae_pattern for querying the embedded knowledge base.
 
-The SDK also supports `agent.as_tool()` — wrapping an agent as a callable tool
-for the main agent. A practical use: a verification sub-agent that re-reads the
-produced output and checks it against the task requirements before the main
-agent finishes. See `docs/openai-agents-sdk/tools.md` for details.
+3. **run_shell** — general shell commands for file operations, AE ExtendScript
+   execution, and anything the specialized tools don't cover.
+
+High-leverage improvements for video editing:
+
+- Adding compound tools that combine multiple Premiere operations (e.g.,
+  "build_intro_sequence" that creates a sequence, imports assets, places clips,
+  and adds transitions in one call)
+- Adding an AE bridge tool that generates and executes ExtendScript for motion
+  graphics, then imports the render into Premiere
+- Adding a verification sub-agent that inspects the timeline after edits and
+  confirms the result matches the task requirements
+- Improving the system prompt's technique knowledge with more specific
+  parameter values and timing recommendations
 
 ## What You Must Not Modify
 
@@ -113,11 +131,15 @@ performance with simpler code is a real improvement.
 ## How to Run
 
 ```bash
+# Ensure prerequisites are running (ccproxy, Premiere, Premiere MCP HTTP server)
 docker build -f Dockerfile.base -t autoagent-base .
-rm -rf jobs; mkdir -p jobs && uv run harbor run -p tasks/ -n 100 --agent-import-path agent:AutoAgent -o jobs --job-name latest > run.log 2>&1
+PYTHONUTF8=1 PYTHONIOENCODING=utf-8 rm -rf jobs; mkdir -p jobs && \
+PYTHONUTF8=1 PYTHONIOENCODING=utf-8 uv run harbor run -p tasks/ \
+  -n 1 --agent-import-path agent:AutoAgent -o jobs --job-name latest
 ```
 
-This assumes the current branch includes benchmark tasks.
+Note: Use `-n 1` (serial execution) since all tasks share a single Premiere
+instance. Parallel execution would cause tool call conflicts.
 
 ## Logging Results
 
