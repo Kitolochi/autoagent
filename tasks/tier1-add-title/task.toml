@@ -1,0 +1,4 @@
+[task]
+name = "autoagent/tier1-add-title"
+description = "Add a text title overlay to the active Premiere Pro timeline"
+timeout = 120

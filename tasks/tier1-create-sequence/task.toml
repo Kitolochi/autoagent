@@ -1,0 +1,4 @@
+[task]
+name = "autoagent/tier1-create-sequence"
+description = "Create a new sequence in Premiere Pro"
+timeout = 120

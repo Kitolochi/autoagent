@@ -1,0 +1,4 @@
+[task]
+name = "autoagent/tier1-add-transition"
+description = "Add a Cross Dissolve transition to a clip in Premiere Pro"
+timeout = 120
