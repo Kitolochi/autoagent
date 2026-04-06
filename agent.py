@@ -28,7 +28,44 @@ from openai import AsyncOpenAI
 # EDITABLE HARNESS — prompt, tools, agent construction
 # ============================================================================
 
-SYSTEM_PROMPT = "You are an agent that executes tasks"
+from pathlib import Path
+from tools.premiere import get_all_premiere_tools
+from tools.knowledge import get_all_knowledge_tools
+
+KNOWLEDGE_DIR = Path(__file__).parent / "knowledge"
+
+
+def _load_knowledge(filename: str) -> str:
+    path = KNOWLEDGE_DIR / filename
+    return path.read_text(encoding="utf-8") if path.exists() else ""
+
+
+TECHNIQUE_REF = _load_knowledge("techniques.md")
+AE_GOTCHAS = _load_knowledge("ae-gotchas.md")
+
+SYSTEM_PROMPT = f"""You are a professional video editor working in Adobe Premiere Pro and After Effects.
+
+## Your Workflow
+1. INSPECT — Check the current project and timeline state before making changes.
+2. PLAN — Decide what edits to make and in what order.
+3. EXECUTE — Make the edits using your Premiere and AE tools.
+4. VERIFY — Check the result matches the task requirements.
+
+## Rules
+- Always call premiere_get_active_sequence or premiere_get_timeline_summary before editing.
+- After every edit, verify the change took effect by inspecting the timeline.
+- Use transitions between clips unless the task specifies hard cuts.
+- For text, use premiere_add_text_overlay for simple titles.
+- For complex motion graphics, use After Effects via run_shell with ExtendScript.
+- When applying effects, check premiere_list_clip_effects after to confirm.
+
+## Video Technique Reference
+{TECHNIQUE_REF}
+
+## After Effects Gotchas
+{AE_GOTCHAS}
+"""
+
 MODEL = os.getenv("AUTOAGENT_MODEL", "claude-sonnet-4-6")
 MAX_TURNS = 30
 
@@ -38,11 +75,11 @@ _model = OpenAIChatCompletionsModel(model=MODEL, openai_client=_client)
 
 
 def create_tools(environment: BaseEnvironment) -> list[FunctionTool]:
-    """Create tools for the agent. Add new tools here."""
+    """Create tools for the agent — Premiere, knowledge, and shell."""
 
     @function_tool
     async def run_shell(command: str) -> str:
-        """Run a shell command in the task environment. Returns stdout and stderr."""
+        """Run a shell command on the host. Returns stdout and stderr."""
         try:
             result = await environment.exec(command=command, timeout_sec=120)
             out = ""
@@ -54,11 +91,11 @@ def create_tools(environment: BaseEnvironment) -> list[FunctionTool]:
         except Exception as exc:
             return f"ERROR: {exc}"
 
-    return [run_shell]
+    return [run_shell] + get_all_premiere_tools() + get_all_knowledge_tools()
 
 
 def create_agent(environment: BaseEnvironment) -> Agent:
-    """Build the agent. Modify to add handoffs, sub-agents, or agent-as-tool."""
+    """Build the video editor agent with Premiere, AE, and knowledge tools."""
     tools = create_tools(environment)
     return Agent(
         name="autoagent",
