@@ -20,7 +20,7 @@ from agents.tool import FunctionTool
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
-PREMIERE_MCP_URL = os.environ.get("PREMIERE_MCP_URL", "http://localhost:3000/mcp")
+PREMIERE_MCP_URL = os.environ.get("PREMIERE_MCP_URL", "http://localhost:3001/mcp")
 
 # ---------------------------------------------------------------------------
 # Session management
