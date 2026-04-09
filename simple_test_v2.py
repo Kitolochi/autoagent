@@ -26,7 +26,10 @@ TOOL_DEFS = [
     {"type": "function", "function": {"name": "list_sequences", "description": "List all sequences in the project.", "parameters": {"type": "object", "properties": {}}}},
     {"type": "function", "function": {"name": "get_full_sequence_info", "description": "Get complete sequence info including clip node IDs, transitions, and effects.", "parameters": {"type": "object", "properties": {}}}},
     {"type": "function", "function": {"name": "create_sequence", "description": "Create a new sequence.", "parameters": {"type": "object", "properties": {"name": {"type": "string"}}, "required": ["name"]}}},
-    {"type": "function", "function": {"name": "execute_extendscript", "description": "Execute custom ExtendScript (ES3 syntax) in Premiere Pro. Helpers available: __secondsToTicks(s), __ticksToSeconds(t), __findSequence(id), __result(data), __error(msg). Code MUST end with return __result({...}) or return __error('...'). Use app.enableQE() for QE DOM. Use var not let/const.", "parameters": {"type": "object", "properties": {"code": {"type": "string", "description": "ExtendScript code (ES3). Must call return __result({}) or return __error('')."}, "timeout_ms": {"type": "number"}}, "required": ["code"]}}},
+    {"type": "function", "function": {"name": "add_text_overlay", "description": "Add a text overlay to the active sequence using a Basic Title MOGRT.", "parameters": {"type": "object", "properties": {"text": {"type": "string"}, "track_index": {"type": "number"}, "start_seconds": {"type": "number"}, "duration_seconds": {"type": "number"}}, "required": ["text"]}}},
+    {"type": "function", "function": {"name": "create_bars_and_tone", "description": "Create a Bars and Tone media item in the project.", "parameters": {"type": "object", "properties": {}}}},
+    {"type": "function", "function": {"name": "add_to_timeline", "description": "Add a project item to the timeline.", "parameters": {"type": "object", "properties": {"item_id": {"type": "string", "description": "Node ID or name of the project item"}, "track_index": {"type": "number"}, "start_seconds": {"type": "number"}}, "required": ["item_id"]}}},
+    {"type": "function", "function": {"name": "execute_extendscript", "description": "Execute custom ExtendScript (ES3 syntax) in Premiere Pro. Helpers: __secondsToTicks(s), __ticksToSeconds(t), __result(data), __error(msg). Must end with return __result({}) or return __error(''). Use app.enableQE() for QE DOM. Use var not let/const.", "parameters": {"type": "object", "properties": {"code": {"type": "string"}, "timeout_ms": {"type": "number"}}, "required": ["code"]}}},
 ]
 
 
@@ -130,40 +133,23 @@ async def test_create_sequence():
     return score
 
 
-# --- Test 2: Add clip to timeline ---
-async def test_add_clip_to_timeline():
-    print("\n=== Test 2: Add Clip to Timeline ===")
-    instruction = """Add a Bars and Tone clip to track 0 of the active sequence at time 0. Steps:
-1. Call get_active_sequence to confirm a sequence is active.
-2. Use execute_extendscript to create bars and tone and insert it:
-   - app.enableQE(); qe.project.newBarsAndTone();
-   - Find the item in app.project.rootItem.children (look for name containing "Bars")
-   - Insert it: seq.videoTracks[0].insertClip(item, __secondsToTicks(0).toString())
-   - Return __result with the clip name
-3. Call get_timeline_summary to verify the clip appears on track 0."""
+# --- Test 2: Add text overlay ---
+async def test_add_text_overlay():
+    print("\n=== Test 2: Add Text Overlay ===")
+    instruction = 'Add a text overlay saying "HELLO WORLD" to the active timeline on track_index 1, at start_seconds 5, with duration_seconds 3. Steps: 1) get_active_sequence, 2) add_text_overlay with text "HELLO WORLD", track_index 1, start_seconds 5, duration_seconds 3, 3) get_timeline_summary to verify.'
 
     traj = await run_agent(instruction)
-    score, msg = check_trajectory_any(traj, ["execute_extendscript"])
-    # Extra check: verify the extendscript result indicates success
-    for entry in traj:
-        if entry.get("tool") == "execute_extendscript":
-            result = entry.get("result", "")
-            if "added" in result.lower() or "insert" in result.lower() or "clip" in result.lower():
-                print("PASS: clip added to timeline via execute_extendscript")
-                return 1.0
-    if score > 0:
-        print(msg)
-        return score
+    score, msg = check_trajectory(traj, "add_text_overlay")
     print(msg)
-    return 0.0
+    return score
 
 
 # --- Test 3: Add Transition ---
 async def test_add_transition():
     print("\n=== Test 3: Add Transition ===")
     instruction = """Add a Cross Dissolve transition to the first video clip on the active timeline. Steps:
-1. Call get_full_sequence_info to find the first clip on videoTracks[0].
-2. Use execute_extendscript to add the transition via QE DOM:
+1. Call get_full_sequence_info to find the first clip on videoTracks[0] and its nodeId.
+2. Use execute_extendscript to add the transition via QE DOM (since add_transition_to_clip has a bug):
    - app.enableQE();
    - var qeSeq = qe.project.getActiveSequence();
    - var track = qeSeq.getVideoTrackAt(0);
@@ -192,7 +178,7 @@ async def main():
     scores = []
     tests = [
         ("create_sequence", test_create_sequence),
-        ("add_clip", test_add_clip_to_timeline),
+        ("add_text_overlay", test_add_text_overlay),
         ("add_transition", test_add_transition),
     ]
 
