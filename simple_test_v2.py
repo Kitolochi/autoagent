@@ -144,9 +144,27 @@ async def test_add_text_overlay():
     return score
 
 
-# --- Test 3: Add Transition ---
+# --- Test 3: Add Clip to Timeline ---
+async def test_add_clip_to_timeline():
+    print("\n=== Test 3: Add Clip to Timeline ===")
+    instruction = """Add a Bars and Tone clip to the active timeline. Steps:
+1. Call create_bars_and_tone to create the media item.
+2. Use add_to_timeline to add it to track 0 at start_seconds 0.
+3. Call get_timeline_summary to verify the clip appears on track 0."""
+
+    traj = await run_agent(instruction)
+    score1, msg1 = check_trajectory(traj, "create_bars_and_tone")
+    score2, msg2 = check_trajectory(traj, "add_to_timeline")
+    if score1 > 0 and score2 > 0:
+        print("PASS: both create_bars_and_tone and add_to_timeline succeeded")
+        return 1.0
+    print(f"FAIL: {msg1}, {msg2}")
+    return 0.0
+
+
+# --- Test 4: Add Transition ---
 async def test_add_transition():
-    print("\n=== Test 3: Add Transition ===")
+    print("\n=== Test 4: Add Transition ===")
     instruction = """Add a Cross Dissolve transition to the first video clip on the active timeline. Steps:
 1. Call get_full_sequence_info to find the first clip on videoTracks[0] and its nodeId.
 2. Use execute_extendscript to add the transition via QE DOM (since add_transition_to_clip has a bug):
@@ -179,6 +197,7 @@ async def main():
     tests = [
         ("create_sequence", test_create_sequence),
         ("add_text_overlay", test_add_text_overlay),
+        ("add_clip", test_add_clip_to_timeline),
         ("add_transition", test_add_transition),
     ]
 
