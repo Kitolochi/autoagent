@@ -46,18 +46,33 @@ AE_GOTCHAS = _load_knowledge("ae-gotchas.md")
 SYSTEM_PROMPT = f"""You are a professional video editor working in Adobe Premiere Pro and After Effects.
 
 ## Your Workflow
-1. INSPECT — Check the current project and timeline state before making changes.
-2. PLAN — Decide what edits to make and in what order.
-3. EXECUTE — Make the edits using your Premiere and AE tools.
-4. VERIFY — Check the result matches the task requirements.
+1. PLAN — Break down the task into discrete, verifiable steps using create_edit_plan.
+2. INSPECT — Check the current project and timeline state before making changes.
+3. EXECUTE — Make the edits step-by-step, following your plan.
+4. VERIFY — After completing all steps, use verify_timeline to confirm requirements are met.
 
-## Rules
-- Always call premiere_get_active_sequence or premiere_get_timeline_summary before editing.
-- After every edit, verify the change took effect by inspecting the timeline.
+## Planning Requirements
+For ANY task with more than one operation, you MUST:
+- Call create_edit_plan FIRST with the task description
+- Reference the plan steps as you execute
+- Mark steps complete as you go
+- Call verify_timeline BEFORE reporting success
+
+## Execution Rules
+- Always call get_active_sequence or get_timeline_summary before editing.
+- After each major edit, inspect the timeline to confirm the change.
 - Use transitions between clips unless the task specifies hard cuts.
-- For text, use premiere_add_text_overlay for simple titles.
+- For text, use add_text_overlay for simple titles.
 - For complex motion graphics, use After Effects via run_shell with ExtendScript.
-- When applying effects, check premiere_list_clip_effects after to confirm.
+- When applying effects, check list_clip_effects after to confirm.
+
+## Error Recovery
+If a tool returns ERROR:
+1. Read the error message carefully
+2. Check your parameters match the tool's requirements
+3. Inspect current state with get_timeline_summary or get_full_sequence_info
+4. Adjust parameters and retry ONCE
+5. If second attempt fails, try an alternative approach or call undo
 
 ## Video Technique Reference
 {TECHNIQUE_REF}
@@ -75,7 +90,143 @@ _model = OpenAIChatCompletionsModel(model=MODEL, openai_client=_client)
 
 
 def create_tools(environment: BaseEnvironment) -> list[FunctionTool]:
-    """Create tools for the agent — Premiere, knowledge, and shell."""
+    """Create tools for the agent — Premiere, knowledge, planning, verification, and shell."""
+
+    # Shared state for plan tracking across tool calls
+    _plan_state = {"steps": [], "completed": []}
+
+    @function_tool
+    async def create_edit_plan(task_description: str) -> str:
+        """Create a structured plan for a video editing task.
+
+        Breaks down the task into numbered steps with clear success criteria.
+        Returns a formatted plan that can be referenced during execution.
+
+        Args:
+            task_description: The full task instruction to break down
+        """
+        # Parse the task and create structured steps
+        lines = task_description.strip().split("\n")
+        steps = []
+        step_num = 1
+
+        # Extract explicit steps if present
+        for line in lines:
+            line = line.strip()
+            if line and (line[0].isdigit() or line.startswith("-") or line.startswith("•")):
+                # Remove numbering/bullets
+                cleaned = line.lstrip("0123456789.-•) ").strip()
+                if cleaned:
+                    steps.append(f"{step_num}. {cleaned}")
+                    step_num += 1
+
+        # If no explicit steps found, create basic workflow steps
+        if not steps:
+            if "sequence" in task_description.lower() and "create" in task_description.lower():
+                steps.append("1. Create new sequence with specified name")
+                step_num = 2
+            if "clip" in task_description.lower() or "media" in task_description.lower():
+                steps.append(f"{step_num}. Import or create media items")
+                step_num += 1
+                steps.append(f"{step_num}. Add clips to timeline at specified positions")
+                step_num += 1
+            if "text" in task_description.lower() or "title" in task_description.lower():
+                steps.append(f"{step_num}. Add text overlays with specified content and timing")
+                step_num += 1
+            if "transition" in task_description.lower():
+                steps.append(f"{step_num}. Apply transitions between clips")
+                step_num += 1
+            if "effect" in task_description.lower() or "color" in task_description.lower():
+                steps.append(f"{step_num}. Apply effects or color corrections")
+                step_num += 1
+            steps.append(f"{step_num}. Verify timeline state matches requirements")
+
+        _plan_state["steps"] = steps
+        _plan_state["completed"] = []
+
+        plan_text = "EDIT PLAN:\n" + "\n".join(steps)
+        plan_text += "\n\nExecute these steps in order. After each step, verify it succeeded before proceeding."
+        return plan_text
+
+    @function_tool
+    async def verify_timeline(requirements: str) -> str:
+        """Verify the current timeline state matches task requirements.
+
+        Inspects the timeline and checks if all requirements are met.
+        Returns structured feedback on what's correct and what's missing.
+
+        Args:
+            requirements: Description of what should be present on the timeline
+        """
+        from tools.premiere import _call_tool
+
+        # Gather timeline state
+        try:
+            timeline_info = await _call_tool("get_full_sequence_info", {})
+            summary = await _call_tool("get_timeline_summary", {})
+        except Exception as e:
+            return f"ERROR: Could not inspect timeline: {e}"
+
+        # Build verification report
+        report = ["VERIFICATION REPORT:", ""]
+        report.append("Current Timeline State:")
+        report.append(summary[:500])  # Truncate to keep response manageable
+        report.append("")
+
+        # Check against requirements
+        requirements_lower = requirements.lower()
+        checks = []
+
+        # Check for sequence existence
+        if "sequence" in requirements_lower:
+            if "active sequence" in summary.lower() or "sequence:" in summary.lower():
+                checks.append("✓ Sequence exists")
+            else:
+                checks.append("✗ No active sequence found")
+
+        # Check for clips
+        if "clip" in requirements_lower or "bars and tone" in requirements_lower:
+            if "track 0" in summary.lower() or "video track" in summary.lower():
+                checks.append("✓ Clips found on timeline")
+            else:
+                checks.append("✗ No clips found on timeline")
+
+        # Check for text overlays
+        if "text" in requirements_lower or "title" in requirements_lower or "overlay" in requirements_lower:
+            if "text" in summary.lower() or "title" in summary.lower() or "track 1" in summary.lower() or "track 2" in summary.lower():
+                checks.append("✓ Text overlay likely present")
+            else:
+                checks.append("✗ No text overlay found")
+
+        # Check for transitions
+        if "transition" in requirements_lower:
+            if "transition" in timeline_info.lower() or "dissolve" in timeline_info.lower():
+                checks.append("✓ Transition found")
+            else:
+                checks.append("✗ No transition found (check get_full_sequence_info for transition details)")
+
+        # Check for markers
+        if "marker" in requirements_lower:
+            if "marker" in summary.lower() or "marker" in timeline_info.lower():
+                checks.append("✓ Markers found")
+            else:
+                checks.append("✗ No markers found")
+
+        report.append("Requirement Checks:")
+        report.extend(checks)
+        report.append("")
+
+        # Determine overall status
+        failed_checks = [c for c in checks if c.startswith("✗")]
+        if failed_checks:
+            report.append(f"STATUS: INCOMPLETE ({len(failed_checks)} requirements not met)")
+            report.append("NEXT STEPS:")
+            for check in failed_checks:
+                report.append(f"  - Address: {check[2:]}")  # Remove the ✗ symbol
+        else:
+            report.append("STATUS: COMPLETE (all detectable requirements met)")
+
+        return "\n".join(report)
 
     @function_tool
     async def run_shell(command: str) -> str:
@@ -91,7 +242,7 @@ def create_tools(environment: BaseEnvironment) -> list[FunctionTool]:
         except Exception as exc:
             return f"ERROR: {exc}"
 
-    return [run_shell] + get_all_premiere_tools() + get_all_knowledge_tools()
+    return [create_edit_plan, verify_timeline, run_shell] + get_all_premiere_tools() + get_all_knowledge_tools()
 
 
 def create_agent(environment: BaseEnvironment) -> Agent:
