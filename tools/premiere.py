@@ -584,6 +584,166 @@ async def redo() -> str:
 
 
 # ---------------------------------------------------------------------------
+# New high-priority tools for social media editing
+# ---------------------------------------------------------------------------
+
+@function_tool
+async def add_audio_keyframes(
+    track_index: int,
+    clip_index: int,
+    keyframes: str,
+) -> str:
+    """Add volume keyframes to an audio clip for ducking/automation.
+
+    Args:
+        track_index: Zero-based audio track index.
+        clip_index: Zero-based clip index on the track.
+        keyframes: JSON string of list[{timeSeconds, levelDb}].
+    """
+    import json
+    kf_list = json.loads(keyframes)
+    return await _call_tool("add_audio_keyframes", {
+        "trackIndex": track_index,
+        "clipIndex": clip_index,
+        "keyframes": kf_list,
+    })
+
+
+@function_tool
+async def apply_lut(
+    track_index: int,
+    clip_index: int,
+    lut_path: str,
+) -> str:
+    """Apply a LUT (Look-Up Table) to a video clip for color grading.
+
+    Args:
+        track_index: Zero-based video track index.
+        clip_index: Zero-based clip index on the track.
+        lut_path: Absolute path to .cube or .look LUT file.
+    """
+    return await _call_tool("apply_lut", {
+        "trackIndex": track_index,
+        "clipIndex": clip_index,
+        "lutPath": lut_path,
+    })
+
+
+@function_tool
+async def import_mogrt(file_path: str, bin_path: str = "") -> str:
+    """Import a Motion Graphics Template (.mogrt) into the project.
+
+    Args:
+        file_path: Absolute path to the .mogrt file.
+        bin_path: Optional bin path to import into.
+    """
+    args: dict = {"filePath": file_path}
+    if bin_path:
+        args["binPath"] = bin_path
+    return await _call_tool("import_mogrt", args)
+
+
+@function_tool
+async def add_keyframe(
+    track_index: int,
+    clip_index: int,
+    property_name: str,
+    time_seconds: float,
+    value: str,
+) -> str:
+    """Add a keyframe for transform properties (position, scale, rotation).
+
+    Args:
+        track_index: Zero-based video track index.
+        clip_index: Zero-based clip index on the track.
+        property_name: Property name - "position", "scale", "rotation", "anchor_point", or "opacity".
+        time_seconds: Time in seconds from clip start.
+        value: JSON string - "[x, y]" for position/anchor, "1.5" for scale/rotation/opacity.
+    """
+    import json
+    val = json.loads(value)
+    return await _call_tool("add_keyframe", {
+        "trackIndex": track_index,
+        "clipIndex": clip_index,
+        "propertyName": property_name,
+        "timeSeconds": time_seconds,
+        "value": val,
+    })
+
+
+@function_tool
+async def reverse_clip(track_index: int, clip_index: int) -> str:
+    """Reverse a clip (plays backwards) for dramatic reveals.
+
+    Args:
+        track_index: Zero-based video track index.
+        clip_index: Zero-based clip index on the track.
+    """
+    return await _call_tool("reverse_clip", {
+        "trackIndex": track_index,
+        "clipIndex": clip_index,
+    })
+
+
+@function_tool
+async def batch_apply_effect(
+    effect_name: str,
+    clips: str,
+) -> str:
+    """Apply the same effect to multiple clips at once.
+
+    Args:
+        effect_name: Name of the effect to apply (e.g., "Gaussian Blur").
+        clips: JSON string of list[{trackIndex, clipIndex}] identifying clips.
+    """
+    import json
+    clips_list = json.loads(clips)
+    return await _call_tool("batch_apply_effect", {
+        "effectName": effect_name,
+        "clips": clips_list,
+    })
+
+
+@function_tool
+async def set_blend_mode(
+    track_index: int,
+    clip_index: int,
+    blend_mode: str,
+) -> str:
+    """Set the blend mode for compositing overlays.
+
+    Args:
+        track_index: Zero-based video track index.
+        clip_index: Zero-based clip index on the track.
+        blend_mode: Blend mode name - "Normal", "Multiply", "Screen", "Overlay", "Add", etc.
+    """
+    return await _call_tool("set_blend_mode", {
+        "trackIndex": track_index,
+        "clipIndex": clip_index,
+        "blendMode": blend_mode,
+    })
+
+
+@function_tool
+async def nest_clips(
+    clips: str,
+    sequence_name: str,
+) -> str:
+    """Nest selected clips into a new sequence for organization.
+
+    Args:
+        clips: JSON string of list[{trackIndex, clipIndex}] identifying clips to nest.
+        sequence_name: Name for the new nested sequence.
+    """
+    import json
+    clips_list = json.loads(clips)
+    return await _call_tool("nest_clips", {
+        "clips": clips_list,
+        "sequenceName": sequence_name,
+    })
+
+
+# ---------------------------------------------------------------------------
 # Tool collection
 # ---------------------------------------------------------------------------
 
@@ -622,4 +782,13 @@ def get_all_premiere_tools() -> list[FunctionTool]:
         list_project_items,
         undo,
         redo,
+        # High-priority social media editing tools
+        add_audio_keyframes,
+        apply_lut,
+        import_mogrt,
+        add_keyframe,
+        reverse_clip,
+        batch_apply_effect,
+        set_blend_mode,
+        nest_clips,
     ]
