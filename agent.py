@@ -256,14 +256,17 @@ class AutoAgent(BaseAgent):
 
     async def run(self, instruction: str, environment: BaseEnvironment, context: AgentContext) -> None:
         await environment.exec(command="mkdir -p /task")
+        # Ensure instruction.md's parent directory exists
         instr_file = self.logs_dir / "instruction.md"
+        instr_file.parent.mkdir(parents=True, exist_ok=True)
         instr_file.write_text(instruction)
         await environment.upload_file(source_path=instr_file, target_path="/task/instruction.md")
 
         result, duration_ms = await run_task(environment, instruction)
 
         atif = to_atif(result, model=MODEL, duration_ms=duration_ms)
-        traj_path = self.logs_dir / "trajectory.json"
+        traj_path = self.logs_dir / "agent" / "trajectory.json"
+        traj_path.parent.mkdir(parents=True, exist_ok=True)
         traj_path.write_text(json.dumps(atif, indent=2))
 
         try:

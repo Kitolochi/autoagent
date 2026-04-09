@@ -54,14 +54,21 @@ def check():
         print(f"FAIL: create_sequence called but not with 'Test Sequence'. Names used: {names}")
         return 0.0
 
-    # Check 2: the tool call did not return an error
+    # Check 2: at least one call succeeded (tolerates retries)
+    success = False
+    last_error = None
     for call in create_calls:
         if "Test Sequence" in call["arguments"].get("name", ""):
             content = call["content"].lower()
-            if content.startswith("error"):
-                print(f"FAIL: create_sequence returned an error: {call['content']}")
-                return 0.0
-            break
+            if not content.startswith("error"):
+                success = True
+                break
+            else:
+                last_error = call["content"]
+
+    if not success:
+        print(f"FAIL: all create_sequence calls failed. Last error: {last_error}")
+        return 0.0
 
     # Check 3 (bonus): agent verified by calling list_sequences
     verify_calls = find_tool_calls(steps, "list_sequences")
