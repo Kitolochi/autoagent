@@ -11,4 +11,5 @@ dependencies = [
     "openpyxl",
     "numpy",
     "harbor",
+    "openai>=2.30.0",
 ]
