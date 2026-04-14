@@ -107,6 +107,12 @@ Created in commit 2f0621a. Not yet executed.
 2. **Premiere MCP Port** - Changed to 3001 (commit 8eaabe0) to avoid Remotion conflict
 3. **Model** - claude-sonnet-4-6 via AUTOAGENT_MODEL env var
 
+### AE Bridge Integration
+1. **Panel not installed** - `mcp-bridge-auto.jsx` not found in AE 2025 or 2026 ScriptUI Panels. Run `node install-bridge.js` with admin rights.
+2. **Protocol fixed** - http-server.js rewritten to use panel's JSON protocol (ae_command.json / ae_mcp_result.json) instead of incompatible per-id cmd_*.jsx files.
+3. **runScript command added** - Panel now supports arbitrary JSX via `runScript` command for `run_ae_script` tool.
+4. **Directories aligned** - Both server and panel use `C:/Users/chris/Documents/ae-mcp-bridge` (prior "C:/tmp" note was inaccurate).
+
 ### Tool Issues
 1. **add_transition_to_clip** - Known bug, workaround uses execute_extendscript with QE DOM (commit 7f3d673)
 2. **ExtendScript Execution** - Must use ES3 syntax (var not let/const), requires __result/__error wrappers
