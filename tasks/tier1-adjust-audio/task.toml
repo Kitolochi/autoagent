@@ -1,0 +1,4 @@
+[task]
+name = "autoagent/tier1-adjust-audio"
+description = "Adjust audio level on a timeline clip"
+timeout = 120

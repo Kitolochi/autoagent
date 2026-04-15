@@ -1,0 +1,4 @@
+[task]
+name = "autoagent/tier1-add-clip"
+description = "Add a project item to the timeline"
+timeout = 120
