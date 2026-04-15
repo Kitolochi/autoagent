@@ -1,8 +1,8 @@
 # AutoAgent Video Editor Project Status
 
-**Last Updated:** 2026-04-09  
+**Last Updated:** 2026-04-15  
 **Current Branch:** main  
-**Latest Commit:** 2f0621a (feat: add tier-2 multi-step composite workflow tests)
+**Latest Commit:** 77c545f (feat: add test infrastructure to 3 remaining tier-1 tasks)
 
 ## Project Overview
 
@@ -35,7 +35,7 @@ Single Premiere Pro operation per task. Tests basic tool calling.
 5. `tier1-import-media` - Import media file to project
 6. `tier1-adjust-audio` - Adjust audio levels on clip
 
-**Status:** Tasks defined, instruction.md files present. Harbor integration attempted but not verified passing.
+**Status:** All 6 tasks have instruction.md, task.toml, Dockerfile, test.sh, and test.py. Ready for Harbor run.
 
 ### Tier 2: Multi-Step Workflows (3 tasks defined)
 Composite operations requiring multiple tools in sequence.
@@ -134,32 +134,37 @@ Created in commit 2f0621a. Not yet executed.
 
 ## Recent Changes (Last 10 Commits)
 
-1. **2f0621a** - feat(benchmark): add tier-2 multi-step composite workflow tests
-2. **0990315** - feat(benchmark): add tier-1 test for add_clip_to_timeline
-3. **679f5e6** - chore(git): ignore uv.lock per lock file policy
-4. **0d89093** - chore(deps): add openai package for direct API benchmark tests
-5. **7f3d673** - refactor(benchmark): replace ExtendScript clip test with add_text_overlay tool
-6. **013908d** - fix(benchmark): tier-1 passing 3/3 with direct API loop
-7. **8eaabe0** - fix(tools): use port 3001 for Premiere MCP to avoid Remotion conflict
-8. **282b74b** - feat(tasks): add 3 tier-1 benchmark tasks for atomic Premiere Pro operations
-9. **52c3bc9** - feat(program): rewrite directive for video editor agent
-10. **7e85ba8** - feat(agent): rewrite harness for video editor with Premiere/AE/knowledge tools
+1. **77c545f** - feat(tasks): add test infrastructure to 3 remaining tier-1 tasks
+2. **14c27a1** - fix(ae): document bridge protocol fix and improve quick_test resilience
+3. **d49221c** - feat(knowledge): add brand video analysis and 2026 editing techniques
+4. **4cc2c25** - chore(testing): document bridge status and create test utilities
+5. **af80d5c** - feat(ae): add After Effects MCP integration with 8 tools
+6. **6f60f36** - feat(tools): expose 8 high-priority MCP tools for social media editing
+7. **4020b0a** - feat(framework): comprehensive social media editing framework via 5 parallel agents
+8. **bc8663c** - feat(parallel): 4 parallel agents - tier3 design, harness improvements, debugging, docs
+9. **2f0621a** - feat(benchmark): add tier-2 multi-step composite workflow tests
+10. **0990315** - feat(benchmark): add tier-1 test for add_clip_to_timeline
 
 ## Next Steps
 
 ### Immediate (Unblock Testing)
-1. Run `uv sync` to install dependencies including openai package
-2. Verify Premiere MCP connectivity: `curl http://localhost:3001/mcp`
+1. Start Premiere Pro, open Window > Extensions > MCP Bridge
+2. Verify connectivity: `curl http://localhost:3001/mcp`
 3. Start ccproxy: `cd C:\Users\chris\llm-proxy && ccproxy serve --config config.toml`
-4. Run simple_test_v2.py to verify tier-1 baseline
-5. Run tier2_test.py to establish tier-2 baseline
+4. Run `python quick_test.py` to verify bridges
+5. Run simple_test_v2.py to verify tier-1 baseline
+
+### AE Bridge Setup
+1. Install panel: `cd ~/lifeautomation/after-effects-mcp && node install-bridge.js` (admin required)
+2. Start AE, open Window > Extensions > MCP Auto Bridge
+3. Start HTTP server: `node http-server.js`
+4. Protocol mismatch FIXED — server now uses panel's JSON format
 
 ### Harbor Integration
-1. Debug why last Harbor run produced all 0.0 scores
-2. Check verifier code for tier-1 tasks
-3. Fix MCP session cleanup warnings
-4. Run full tier-1 suite (6 tasks) through Harbor
-5. Initialize results.tsv with baseline run
+1. All 6 tier-1 tasks now have test infrastructure (was 3/6)
+2. Run full tier-1 suite through Harbor
+3. Initialize results.tsv with baseline run
+4. Fix MCP session cleanup warnings if still present
 
 ### Benchmark Expansion
 1. Complete tier-3 task definitions (3 missing instruction.md files)
